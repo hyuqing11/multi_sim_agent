@@ -11,7 +11,12 @@ from typing import Any, Dict, Iterable, List, Optional
 import requests
 import streamlit as st
 
-API_BASE_URL = st.secrets.get("api_base_url", os.getenv("API_BASE_URL", "http://localhost:8000"))
+# Ensure API_BASE_URL is not None
+API_BASE_URL = (
+    st.secrets.get("api_base_url")
+    or os.getenv("API_BASE_URL")
+    or "http://localhost:8000"
+)
 
 st.set_page_config(page_title="DFT Copilot Control Panel", layout="wide")
 st.title("DFT Copilot Control Panel")
@@ -118,6 +123,12 @@ if not tasks:
 else:
     st.subheader("Active tasks")
     for task in tasks:
+        # Validate task has required fields
+        required_fields = ['id', 'prompt', 'status']
+        if not all(field in task for field in required_fields):
+            st.warning(f"Malformed task data: missing required fields")
+            continue
+
         header = f"{task['prompt']} (status: {task['status']})"
         expanded = st.session_state.get("latest_task_id") == task["id"]
         with st.expander(header, expanded=expanded):
@@ -142,6 +153,11 @@ else:
             if plan_steps:
                 st.markdown("### Plan")
                 for step in plan_steps:
+                    # Validate step has required fields
+                    if not all(key in step for key in ['id', 'title', 'status']):
+                        st.warning("Malformed step data")
+                        continue
+
                     step_header = f"{step['title']} ({step['status']})"
                     with st.container():
                         st.markdown(f"**{step_header}**")

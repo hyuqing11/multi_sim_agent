@@ -110,6 +110,16 @@ def generate_qe_input(
         if ecutwfc <= 0:
             raise ValueError("ecutwfc must be positive")
 
+        # Validate degauss
+        if degauss < 0:
+            raise ValueError(f"degauss must be non-negative, got {degauss}")
+
+        # Validate kpts
+        if not kpts or len(kpts) != 3:
+            raise ValueError(f"kpts must be a list of 3 integers, got {kpts}")
+        if any(k <= 0 for k in kpts):
+            raise ValueError(f"All k-point values must be positive, got {kpts}")
+
         # Resolve structure file path relative to workspace if thread_id is provided
         structure_path = Path(structure_file)
         if not structure_path.exists():

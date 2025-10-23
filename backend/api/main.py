@@ -1,9 +1,9 @@
 import warnings
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from time import perf_counter
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from langchain_core._api import LangChainBetaWarning
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -53,7 +53,7 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def add_process_time_header(request: Request, call_next: callable) -> dict:
+async def add_process_time_header(request: Request, call_next: Callable) -> Response:
     """Add processing time of each request to the response headers."""
     start_time = perf_counter()
     response = await call_next(request)

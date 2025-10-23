@@ -371,6 +371,13 @@ def submit_local_job(
                     stderr=subprocess.PIPE,
                     cwd=job_script.parent,
                 )
+                # Wait for completion with timeout (5 minutes default)
+                try:
+                    stdout, stderr = process.communicate(timeout=300)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    stdout, stderr = process.communicate()
+                    raise RuntimeError(f"Job script execution timed out after 5 minutes")
 
                 job_results[calc_type] = {
                     "input_file": str(input_file),

@@ -476,7 +476,13 @@ async def draw_messages(
                             # Expect one ToolMessage for each tool call
                             for _ in range(len(call_results)):
                                 tool_result = await anext(messages_agen, None)
+                                tool_token_count = 0
+                                MAX_TOKENS = 1000
                                 while isinstance(tool_result, str):
+                                    tool_token_count += 1
+                                    if tool_token_count > MAX_TOKENS:
+                                        st.error("Stream error: Too many tokens before tool result")
+                                        break
                                     # Streaming token arrived before tool result; display inline
                                     if streaming_placeholder is None and last_message_type != "ai":
                                         last_message_type = "ai"
@@ -591,8 +597,16 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
     """
     nested_popovers = {}
 
+    # Prevent infinite loops with max iteration limits
+    MAX_TOKEN_SKIP = 1000
+    token_count = 0
+
     first_msg = await anext(messages_agen, None)
     while isinstance(first_msg, str):
+        token_count += 1
+        if token_count > MAX_TOKEN_SKIP:
+            st.error("Stream error: Too many consecutive tokens without message")
+            return
         first_msg = await anext(messages_agen, None)
     if first_msg is None:
         return
@@ -601,7 +615,12 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
 
     while True:
         sub_msg = await anext(messages_agen, None)
+        token_count = 0  # Reset counter for each new message
         while isinstance(sub_msg, str):
+            token_count += 1
+            if token_count > MAX_TOKEN_SKIP:
+                st.error("Stream error: Too many consecutive tokens without message")
+                return
             sub_msg = await anext(messages_agen, None)
         if sub_msg is None:
             break
@@ -627,7 +646,13 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
             for tc in sub_msg.tool_calls:
                 if "transfer_back_to" in tc.get("name", ""):
                     transfer_result = await anext(messages_agen, None)
+                    transfer_token_count = 0
+                    MAX_TRANSFER_TOKENS = 1000
                     while isinstance(transfer_result, str):
+                        transfer_token_count += 1
+                        if transfer_token_count > MAX_TRANSFER_TOKENS:
+                            st.error("Stream error: Too many tokens before transfer result")
+                            break
                         transfer_result = await anext(messages_agen, None)
                     if transfer_result and is_new:
                         st.session_state.messages.append(transfer_result)

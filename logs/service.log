@@ -1,0 +1,56 @@
+INFO:     Will watch for changes in these directories: ['/Users/hyuqing/Downloads/research/new_project/dft-agent']
+INFO:     Uvicorn running on http://0.0.0.0:8083 (Press CTRL+C to quit)
+INFO:     Started reloader process [62281] using WatchFiles
+INFO:     Started server process [62312]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:54824 - "GET /info HTTP/1.1" 200 OK
+[ENDPOINT] Stream endpoint hit! agent_id=chatbot, message=lattice constant fOR YH2 
+[STREAM START] agent=chatbot, model=claude-sonnet-4-5-20250929, stream_tokens=True
+[STREAM] Generator function entered - about to get agent
+[STREAM] Agent obtained, parsing input
+[DEBUG PARSE] thread_id=6c9b0bcd-e1e6-4497-8452-c5d1a37d39e4, model=claude-sonnet-4-5-20250929, message_len=25
+[STREAM] About to enter try block
+[STREAM] Yielding test event to ensure stream works
+INFO:     127.0.0.1:54874 - "POST /agent/chatbot/stream HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'backend/agents/client.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [62312]
+INFO:     Started server process [62705]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'frontend/app.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [62705]
+INFO:     Started server process [63447]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'frontend/app.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [63447]
+INFO:     Started server process [63649]
+INFO:     Waiting for application startup.
+WARNING:  WatchFiles detected changes in 'frontend/app.py'. Reloading...
+INFO:     Application startup complete.
+INFO:     Started server process [63704]
+INFO:     Waiting for application startup.
+WARNING:  WatchFiles detected changes in 'frontend/app.py'. Reloading...
+INFO:     Application startup complete.
+INFO:     Started server process [63768]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'backend/api/endpoints/agent.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [63768]
+INFO:     Started server process [70463]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:52251 - "GET /info HTTP/1.1" 200 OK

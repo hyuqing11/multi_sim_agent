@@ -1,0 +1,13 @@
+{
+    "dockerfile_lines": [],
+    "graphs": {
+        "vasp_structure_agent": "./backend/agents/library/vasp_agent/structure_agent.py:structure_agent",
+        "vasp_input_agent": "./backend/agents/library/vasp_agent/input_agent.py:input_agent",
+        "vasp_pipeline_agent": "./backend/agents/library/vasp_agent/pipeline_agent.py:vasp_pipeline_agent"
+    },
+    "env": ".env",
+    "python_version": "3.12",
+    "dependencies": [
+        "."
+    ]
+}

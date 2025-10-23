@@ -1,0 +1,18 @@
+sites:
+    type: lsf
+    defaults:
+      #queue: "standard"      # change to your Hazel queue
+      ncores: 4
+      time: "00:10:00"          # converted to LSF -W HH:MM
+      #mem_mb: 64           # LSF rusage[mem=...]
+      span_one_host: false      # set true if you want all cores on one node
+      modules:
+        - "PrgEnv-intel/2024.1.0"
+      env:
+        "PATH": "/usr/local/usrapps/jeapen/hyuqing/vasp.5.4.4.pl2_vsts/bin:$PATH"
+jobs:
+  work_dir: "/share/jeapen/hyuqing/Lammps_Phonon/hpc_test/"
+  job_name: "test_vasp"
+  command:  mpirun vasp_gpu
+  #command: "mpirun /usr/local/apps/lammps/lammps29Aug2024/lmp_cpu < input.lammps"
+  #command: "./out.exe"

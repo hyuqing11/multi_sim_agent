@@ -1,0 +1,29 @@
+
+  You can now view your Streamlit app in your browser.
+
+  Local URL: http://localhost:8501
+  Network URL: http://192.168.1.102:8501
+
+2025-10-19 03:00:24.098 Uncaught app exception
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 535, in _run_script
+    exec(code, module.__dict__)
+  File "/Users/hyuqing/Downloads/research/new_project/dft-agent/frontend/app.py", line 31, in <module>
+    from backend.agents.client import AgentClient, AgentClientError
+  File "/Users/hyuqing/Downloads/research/new_project/dft-agent/backend/agents/__init__.py", line 1, in <module>
+    from backend.agents.agent_manager import DEFAULT_AGENT, get_agent, get_all_agent_info
+  File "/Users/hyuqing/Downloads/research/new_project/dft-agent/backend/agents/agent_manager.py", line 4, in <module>
+    from langgraph.graph.state import CompiledStateGraph
+ModuleNotFoundError: No module named 'langgraph'
+2025-10-19 06:02:07.336 Uncaught app exception
+Traceback (most recent call last):
+  File "/Library/Frameworks/Python.framework/Versions/3.9/lib/python3.9/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 535, in _run_script
+    exec(code, module.__dict__)
+  File "/Users/hyuqing/Downloads/research/new_project/dft-agent/frontend/app.py", line 31, in <module>
+    from backend.agents.client import AgentClient, AgentClientError
+  File "/Users/hyuqing/Downloads/research/new_project/dft-agent/backend/agents/__init__.py", line 1, in <module>
+    from backend.agents.agent_manager import DEFAULT_AGENT, get_agent, get_all_agent_info
+  File "/Users/hyuqing/Downloads/research/new_project/dft-agent/backend/agents/agent_manager.py", line 4, in <module>
+    from langgraph.graph.state import CompiledStateGraph
+ModuleNotFoundError: No module named 'langgraph'
+  Stopping...

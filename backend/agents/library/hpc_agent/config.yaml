@@ -1,0 +1,14 @@
+sites:
+    type: lsf
+    defaults:
+      ncores: 4
+      time: "48:00:00"
+      span_one_host: false
+      modules:
+        - "PrgEnv-intel/2022.1.0"
+      env:
+        "PATH": "/usr/local/usrapps/{your_installation_path}/vasp/vasp.6.4.2/bin:$PATH"
+jobs:
+  work_dir: "/share/mygroup/si_relax"
+  job_name: "Si_DFT_Relaxation"
+  command: "mpirun vasp_std"

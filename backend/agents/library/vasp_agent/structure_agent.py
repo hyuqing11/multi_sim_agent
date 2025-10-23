@@ -306,6 +306,15 @@ def agent_entrypoint(state: StructureAgentState) -> dict:
     Initializes the agent state at the beginning of the run.
     Sets the run directory and query.
     """
+    # Validate messages exist to prevent IndexError
+    if not state.get("messages"):
+        run_dir = state.get("run_dir") or f"./workspace/run_{uuid.uuid4().hex[:8]}"
+        query = state.get("query") or ""
+        os.makedirs(run_dir, exist_ok=True)
+        abs_run_dir = os.path.abspath(run_dir)
+        set_active_run_dir(abs_run_dir)
+        return {"run_dir": abs_run_dir, "query": query}
+
     # 1. Get run_dir and query from the first HumanMessage
     first_message = state["messages"][0]
     content = first_message.content

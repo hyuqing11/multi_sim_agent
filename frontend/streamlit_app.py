@@ -4,6 +4,7 @@ Run with: `streamlit run frontend/streamlit_app.py`
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -91,13 +92,21 @@ with st.sidebar:
                 else:
                     st.success(f"Task created: {task['id']}")
                     st.session_state.setdefault("latest_task_id", task["id"])
-                    st.experimental_rerun()
+                    st.rerun()
 
 st.caption(f"Backend API: {API_BASE_URL}")
 
 refresh_interval_ms = st.sidebar.slider("Auto-refresh interval (ms)", 0, 60000, 5000, step=1000)
+# Auto-refresh implementation using sleep and rerun
 if refresh_interval_ms:
-    st.experimental_autorefresh(interval=refresh_interval_ms, key="autorefresh")
+    # Store last refresh time in session state
+    if "last_refresh" not in st.session_state:
+        st.session_state.last_refresh = time.time()
+
+    time_since_refresh = time.time() - st.session_state.last_refresh
+    if time_since_refresh * 1000 >= refresh_interval_ms:
+        st.session_state.last_refresh = time.time()
+        st.rerun()
 
 try:
     tasks = fetch_tasks()
@@ -162,7 +171,7 @@ else:
                                         st.stop()
                                     else:
                                         st.success("Comment added.")
-                                        st.experimental_rerun()
+                                        st.rerun()
 
             action_cols = st.columns(4)
             if action_cols[0].button("Refresh", key=f"refresh_{task['id']}"):
@@ -172,7 +181,7 @@ else:
                     st.stop()
                 else:
                     st.session_state["latest_task_id"] = refreshed["id"]
-                    st.experimental_rerun()
+                    st.rerun()
 
             with action_cols[1]:
                 approval_notes = st.text_input("Approval notes", key=f"notes_{task['id']}", placeholder="Optional notes")
@@ -183,7 +192,7 @@ else:
                     st.stop()
                 else:
                     st.success("Plan approved.")
-                    st.experimental_rerun()
+                    st.rerun()
             if action_cols[3].button("Request changes", key=f"reject_{task['id']}"):
                 try:
                     approve_plan(task["id"], False, st.session_state.get(f"notes_{task['id']}") or None)
@@ -191,7 +200,7 @@ else:
                     st.stop()
                 else:
                     st.info("Plan sent back for changes.")
-                    st.experimental_rerun()
+                    st.rerun()
 
             if st.button("Execute task", key=f"execute_{task['id']}"):
                 try:
@@ -200,7 +209,7 @@ else:
                     st.stop()
                 else:
                     st.success("Execution started.")
-                    st.experimental_rerun()
+                    st.rerun()
 
             st.divider()
 

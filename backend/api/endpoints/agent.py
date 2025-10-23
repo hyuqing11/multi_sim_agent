@@ -82,8 +82,15 @@ async def invoke(user_input: UserInput, agent_id: str = DEFAULT_AGENT) -> ChatMe
         output = langchain_to_chat_message(response["messages"][-1])
         output.run_id = str(run_id)
         return output
+    except (ValueError, TypeError, KeyError) as e:
+        # Client errors - invalid input or configuration
+        raise HTTPException(status_code=400, detail=f"Invalid request: {e}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Unexpected error: {e}")
+        # Log the full error for debugging
+        import traceback
+        import logging
+        logging.error(f"Agent invocation error: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def _chat_message_key(chat_message: ChatMessage) -> str:

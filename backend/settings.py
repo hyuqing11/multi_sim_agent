@@ -45,6 +45,14 @@ class Settings(BaseSettings):
 
     AUTH_SECRET: SecretStr | None = None
 
+    # CORS configuration - comma-separated list of allowed origins
+    # Example: "http://localhost:3000,http://localhost:8501,https://yourdomain.com"
+    ALLOWED_ORIGINS: str = "http://localhost:8501,http://localhost:3000"
+
+    # Security: Enable Python REPL tool (DANGEROUS - allows arbitrary code execution)
+    # Only enable in trusted, isolated environments
+    ENABLE_PYTHON_REPL: bool = False
+
     OPENAI_API_KEY: SecretStr | None = None
     ANTHROPIC_API_KEY: SecretStr | None = None
     CEREBRAS_API_KEY: SecretStr | None = None

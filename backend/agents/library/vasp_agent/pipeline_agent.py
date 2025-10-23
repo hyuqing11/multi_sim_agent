@@ -118,6 +118,14 @@ async def _structure_node(state: VaspPipelineState, config: RunnableConfig) -> D
         "engine": merged_state.get("engine"),
     }
 
+    # Ensure at least one message exists for the structure agent
+    # If all messages were filtered out, create a message from the query
+    if not structure_state["messages"] and merged_state.get("query"):
+        from langchain_core.messages import HumanMessage
+        structure_state["messages"] = [
+            HumanMessage(content=merged_state["query"])
+        ]
+
     # Pass plan data and parameters to structure agent
     if merged_state.get("plan_data"):
         structure_state["plan_data"] = merged_state["plan_data"]
@@ -182,6 +190,14 @@ async def _input_node(state: VaspPipelineState, config: RunnableConfig) -> Dict[
         "structure_summary": merged_state.get("structure_summary"),
         "structure_prompt_blob": merged_state.get("structure_prompt_blob"),
     }
+
+    # Ensure at least one message exists for the input agent
+    # If all messages were filtered out, create a message from the query
+    if not input_state["messages"] and merged_state.get("query"):
+        from langchain_core.messages import HumanMessage
+        input_state["messages"] = [
+            HumanMessage(content=merged_state["query"])
+        ]
 
     # Pass plan data and parameters to input agent
     if merged_state.get("plan_data"):

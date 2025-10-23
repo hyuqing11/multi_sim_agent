@@ -17,17 +17,22 @@ from langchain_core.tools import tool
 from backend.settings import settings
 from backend.utils.workspace import get_subdir_path
 
+# Constants for k-point calculations
+MIN_CELL_LENGTH = 0.1  # Minimum cell length (Angstrom) to avoid division by zero
+DEFAULT_KSPACING = 0.15  # Default k-point spacing (Angstrom^-1)
+TWO_PI = 2 * np.pi  # 2π constant for reciprocal space calculations
 
-def get_kpoints(atoms, kspacing: float = 0.15) -> list:
+
+def get_kpoints(atoms, kspacing: float = DEFAULT_KSPACING) -> list:
     """Returns the kpoints of a given ase atoms object and specific kspacing."""
     cell = atoms.get_cell()
 
     # Calculate k-points based on reciprocal lattice vectors
     kpts = []
     for i in range(3):
-        if np.linalg.norm(cell[i]) > 0.1:  # Avoid division by zero for very small cells
+        if np.linalg.norm(cell[i]) > MIN_CELL_LENGTH:
             k_val = 2 * (
-                int(np.ceil(2 * np.pi / np.linalg.norm(cell[i]) / kspacing)) // 2 + 1
+                int(np.ceil(TWO_PI / np.linalg.norm(cell[i]) / kspacing)) // 2 + 1
             )
             # Ensure odd k-points for better sampling
             if k_val % 2 == 0 and k_val > 1:

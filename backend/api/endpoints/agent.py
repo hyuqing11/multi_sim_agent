@@ -159,7 +159,6 @@ async def message_generator(
                 print(f"[ERROR] {error_msg}")
                 traceback.print_exc()
                 yield f"data: {json.dumps({'type': 'error', 'content': error_msg})}\n\n"
-                #yield f"data: {json.dumps({'type': 'error', 'content': 'Unexpected error'})}\n\n"
                 continue
             # LangGraph re-sends the input message, which feels weird, so drop it
             if (

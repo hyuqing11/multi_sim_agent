@@ -21,7 +21,6 @@ dependencies = [
     "langchain-experimental",
     "langchain-huggingface",
     "langchain-groq",
-    "langchain-mcp-adapters",
     "langchain-ollama",
     "langchain-openai",
     "langgraph",

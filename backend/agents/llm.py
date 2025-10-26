@@ -141,3 +141,9 @@ def get_model(model_name: AllModelEnum, /) -> ModelT:
         return FakeListChatModel(
             responses=["This is a test response from the fake model."]
         )
+
+    # If we reach here, the model is not supported
+    raise ValueError(
+        f"Unsupported model: {model_name}. This should not happen - "
+        f"please check the model configuration."
+    )

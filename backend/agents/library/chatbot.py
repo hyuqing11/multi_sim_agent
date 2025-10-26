@@ -109,7 +109,7 @@ def fetch_open_access_full_text(url: str, max_chars: int = 60000) -> str:
 
                 reader = PdfReader(BytesIO(resp.content))
                 pages = []
-                for _, page in enumerate(reader.pages):
+                for page in reader.pages:
                     try:
                         pages.append(page.extract_text() or "")
                     except Exception:

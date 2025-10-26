@@ -45,6 +45,14 @@ class Settings(BaseSettings):
 
     AUTH_SECRET: SecretStr | None = None
 
+    # CORS configuration - comma-separated list of allowed origins
+    # Example: "http://localhost:3000,http://localhost:8501,https://yourdomain.com"
+    ALLOWED_ORIGINS: str = "http://localhost:8501,http://localhost:3000"
+
+    # Security: Enable Python REPL tool (DANGEROUS - allows arbitrary code execution)
+    # Only enable in trusted, isolated environments
+    ENABLE_PYTHON_REPL: bool = False
+
     OPENAI_API_KEY: SecretStr | None = None
     ANTHROPIC_API_KEY: SecretStr | None = None
     CEREBRAS_API_KEY: SecretStr | None = None
@@ -68,6 +76,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str = ""
 
     def model_post_init(self, __context: Any) -> None:
+        # Validate at least one LLM provider is configured
         api_keys = {
             Provider.ANTHROPIC: self.ANTHROPIC_API_KEY,
             Provider.OPENAI: self.OPENAI_API_KEY,
@@ -79,6 +88,26 @@ class Settings(BaseSettings):
         active_keys = [k for k, v in api_keys.items() if v]
         if not active_keys:
             raise ValueError("At least one LLM API key must be provided.")
+
+        # Validate ROOT_PATH is writable (for workspace, logs, etc.)
+        try:
+            root_path = self.ROOT_PATH
+            if not os.path.exists(root_path):
+                raise ValueError(f"ROOT_PATH does not exist: {root_path}")
+            # Test write permissions by creating a temp file
+            test_file = os.path.join(root_path, ".write_test")
+            try:
+                with open(test_file, "w") as f:
+                    f.write("test")
+                os.remove(test_file)
+            except (PermissionError, OSError) as e:
+                raise ValueError(
+                    f"ROOT_PATH is not writable: {root_path}. Error: {e}"
+                )
+        except Exception as e:
+            # Log warning but don't crash - ROOT_PATH might be dynamically created
+            import warnings
+            warnings.warn(f"ROOT_PATH validation warning: {e}", UserWarning)
 
         for provider in active_keys:
             match provider:

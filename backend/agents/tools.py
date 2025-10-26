@@ -48,7 +48,17 @@ def python_repl(code: Annotated[str, "Python code or filename to read the code f
     """Use this tool to execute python code. Make sure that you input the code correctly.
     Either input actual code or filename of the code. If you want to see the output of a value,
     you should print it out with `print(...)`. This is visible to the user.
+
+    WARNING: This tool executes arbitrary Python code without sandboxing.
+    It is disabled by default for security. Enable via ENABLE_PYTHON_REPL=true.
     """
+
+    if not settings.ENABLE_PYTHON_REPL:
+        return (
+            "Python REPL tool is disabled for security reasons. "
+            "To enable, set ENABLE_PYTHON_REPL=true in your environment. "
+            "WARNING: This allows arbitrary code execution."
+        )
 
     try:
         result = PythonREPL().run(code)

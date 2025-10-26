@@ -178,7 +178,7 @@ async def main() -> None:
         agent_url = os.getenv("AGENT_URL")
         if not agent_url:
             host = os.getenv("HOST", "0.0.0.0")
-            port = os.getenv("PORT", 8083)
+            port = int(os.getenv("PORT", "8083"))
             agent_url = f"http://{host}:{port}"
         try:
             with st.spinner("Connecting to agent service..."):
@@ -227,23 +227,32 @@ async def main() -> None:
             st.rerun()
 
         with st.popover(":material/settings: Settings", use_container_width=True):
-            # Convert models to strings for display
-            model_options = [str(m) for m in agent_client.info.models]
-            default_model_str = str(agent_client.info.default_model)
-            model_idx = (
-                model_options.index(default_model_str)
-                if default_model_str in model_options
-                else 0
-            )
-            model = st.selectbox("LLM to use", options=model_options, index=model_idx)
-            agent_list = [a.key for a in agent_client.info.agents]
-            agent_idx = agent_list.index(agent_client.info.default_agent)
-            agent_client.agent = st.selectbox(
-                "Agent to use", options=agent_list, index=agent_idx
-            )
-            use_streaming = st.toggle("Stream results", value=True)
-            # Display user id (read-only)
-            st.text_input("User ID", value=user_id, disabled=True)
+            # Validate agent client info is available
+            if not agent_client.info:
+                st.error("Unable to load agent information. Please refresh the page.")
+                st.stop()
+
+            try:
+                # Convert models to strings for display
+                model_options = [str(m) for m in agent_client.info.models]
+                default_model_str = str(agent_client.info.default_model)
+                model_idx = (
+                    model_options.index(default_model_str)
+                    if default_model_str in model_options
+                    else 0
+                )
+                model = st.selectbox("LLM to use", options=model_options, index=model_idx)
+                agent_list = [a.key for a in agent_client.info.agents]
+                agent_idx = agent_list.index(agent_client.info.default_agent)
+                agent_client.agent = st.selectbox(
+                    "Agent to use", options=agent_list, index=agent_idx
+                )
+                use_streaming = st.toggle("Stream results", value=True)
+                # Display user id (read-only)
+                st.text_input("User ID", value=user_id, disabled=True)
+            except (AttributeError, ValueError, IndexError) as e:
+                st.error(f"Error loading agent settings: {e}")
+                st.stop()
 
         with st.popover(":material/policy: Privacy", use_container_width=True):
             st.write(
@@ -252,22 +261,40 @@ async def main() -> None:
 
         @st.dialog("Share Chat")
         def share_chat_dialog() -> None:
-            session = st.runtime.get_instance()._session_mgr.list_active_sessions()[0]
-            st_base_url = urllib.parse.urlunparse(
-                [
-                    session.client.request.protocol,
-                    session.client.request.host,
-                    "",
-                    "",
-                    "",
-                    "",
-                ]
-            )
-            if not st_base_url.startswith("https") and "localhost" not in st_base_url:
-                st_base_url = st_base_url.replace("http", "https")
-            chat_url = f"{st_base_url}?thread_id={st.session_state.thread_id}&{USER_ID_COOKIE}={user_id}"
-            st.markdown(f"**Chat URL:**\n```text\n{chat_url}\n```")
-            st.info("Copy the above URL to share or resume this chat")
+            try:
+                # Try to get session info safely (uses private API - may break in future versions)
+                if not hasattr(st.runtime, 'get_instance'):
+                    st.error("Share feature not available in this Streamlit version")
+                    return
+
+                instance = st.runtime.get_instance()
+                if not hasattr(instance, '_session_mgr'):
+                    st.error("Share feature not available in this Streamlit version")
+                    return
+
+                sessions = instance._session_mgr.list_active_sessions()
+                if not sessions:
+                    st.error("No active session found. Please refresh the page.")
+                    return
+
+                session = sessions[0]
+                st_base_url = urllib.parse.urlunparse(
+                    [
+                        session.client.request.protocol,
+                        session.client.request.host,
+                        "",
+                        "",
+                        "",
+                        "",
+                    ]
+                )
+                if not st_base_url.startswith("https") and "localhost" not in st_base_url:
+                    st_base_url = st_base_url.replace("http", "https")
+                chat_url = f"{st_base_url}?thread_id={st.session_state.thread_id}&{USER_ID_COOKIE}={user_id}"
+                st.markdown(f"**Chat URL:**\n```text\n{chat_url}\n```")
+                st.info("Copy the above URL to share or resume this chat")
+            except (AttributeError, IndexError) as e:
+                st.error(f"Unable to generate share link: {e}")
 
         if st.button(":material/upload: Share Chat", use_container_width=True):
             share_chat_dialog()
@@ -449,7 +476,13 @@ async def draw_messages(
                             # Expect one ToolMessage for each tool call
                             for _ in range(len(call_results)):
                                 tool_result = await anext(messages_agen, None)
+                                tool_token_count = 0
+                                MAX_TOKENS = 1000
                                 while isinstance(tool_result, str):
+                                    tool_token_count += 1
+                                    if tool_token_count > MAX_TOKENS:
+                                        st.error("Stream error: Too many tokens before tool result")
+                                        break
                                     # Streaming token arrived before tool result; display inline
                                     if streaming_placeholder is None and last_message_type != "ai":
                                         last_message_type = "ai"
@@ -523,7 +556,15 @@ async def handle_feedback() -> None:
     if "last_feedback" not in st.session_state:
         st.session_state.last_feedback = (None, None)
 
-    latest_run_id = st.session_state.messages[-1].run_id
+    # Validate we have messages and the latest message has a run_id
+    if not st.session_state.messages:
+        return
+
+    latest_message = st.session_state.messages[-1]
+    latest_run_id = getattr(latest_message, 'run_id', None)
+    if not latest_run_id:
+        return
+
     feedback = st.feedback("stars", key=latest_run_id)
 
     # If the feedback value or run ID has changed, send a new feedback record
@@ -556,8 +597,16 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
     """
     nested_popovers = {}
 
+    # Prevent infinite loops with max iteration limits
+    MAX_TOKEN_SKIP = 1000
+    token_count = 0
+
     first_msg = await anext(messages_agen, None)
     while isinstance(first_msg, str):
+        token_count += 1
+        if token_count > MAX_TOKEN_SKIP:
+            st.error("Stream error: Too many consecutive tokens without message")
+            return
         first_msg = await anext(messages_agen, None)
     if first_msg is None:
         return
@@ -566,7 +615,12 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
 
     while True:
         sub_msg = await anext(messages_agen, None)
+        token_count = 0  # Reset counter for each new message
         while isinstance(sub_msg, str):
+            token_count += 1
+            if token_count > MAX_TOKEN_SKIP:
+                st.error("Stream error: Too many consecutive tokens without message")
+                return
             sub_msg = await anext(messages_agen, None)
         if sub_msg is None:
             break
@@ -592,7 +646,13 @@ async def handle_sub_agent_msgs(messages_agen, status, is_new):
             for tc in sub_msg.tool_calls:
                 if "transfer_back_to" in tc.get("name", ""):
                     transfer_result = await anext(messages_agen, None)
+                    transfer_token_count = 0
+                    MAX_TRANSFER_TOKENS = 1000
                     while isinstance(transfer_result, str):
+                        transfer_token_count += 1
+                        if transfer_token_count > MAX_TRANSFER_TOKENS:
+                            st.error("Stream error: Too many tokens before transfer result")
+                            break
                         transfer_result = await anext(messages_agen, None)
                     if transfer_result and is_new:
                         st.session_state.messages.append(transfer_result)

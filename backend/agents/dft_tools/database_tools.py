@@ -130,6 +130,7 @@ def store_calculation(
     Returns:
         Storage status and calculation ID
     """
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -137,8 +138,8 @@ def store_calculation(
         # Insert calculation
         cursor.execute(
             """
-            INSERT INTO calculations 
-            (name, calculation_type, structure_file, input_parameters, 
+            INSERT INTO calculations
+            (name, calculation_type, structure_file, input_parameters,
              status, created_date, notes)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
@@ -155,12 +156,16 @@ def store_calculation(
 
         calc_id = cursor.lastrowid
         conn.commit()
-        conn.close()
 
         return f"Calculation '{name}' stored with ID {calc_id}"
 
     except Exception as e:
+        if conn:
+            conn.rollback()
         return f"Error storing calculation: {str(e)}"
+    finally:
+        if conn:
+            conn.close()
 
 
 @tool
@@ -183,6 +188,7 @@ def update_calculation_status(
     Returns:
         Update status
     """
+    conn = None
     try:
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
@@ -210,12 +216,16 @@ def update_calculation_status(
         cursor.execute(query, values)
 
         conn.commit()
-        conn.close()
 
         return f"Calculation {calculation_id} updated to status: {status}"
 
     except Exception as e:
+        if conn:
+            conn.rollback()
         return f"Error updating calculation: {str(e)}"
+    finally:
+        if conn:
+            conn.close()
 
 
 @tool

@@ -106,6 +106,22 @@ agent_configs: dict[str, AgentConfig] = {
 
 
 def get_agent(agent_id: str) -> CompiledStateGraph:
+    """Get an agent by ID.
+
+    Args:
+        agent_id: The unique identifier for the agent
+
+    Returns:
+        The compiled state graph for the agent
+
+    Raises:
+        ValueError: If agent_id is not found
+    """
+    if agent_id not in agent_configs:
+        available = ", ".join(agent_configs.keys())
+        raise ValueError(
+            f"Unknown agent: '{agent_id}'. Available agents: {available}"
+        )
     return agent_configs[agent_id].get_graph()
 
 

@@ -120,10 +120,14 @@ async def _structure_node(state: VaspPipelineState, config: RunnableConfig) -> D
 
     # Ensure at least one message exists for the structure agent
     # If all messages were filtered out, create a message from the query
+    # Mark as internal to prevent showing in frontend
     if not structure_state["messages"] and merged_state.get("query"):
         from langchain_core.messages import HumanMessage
         structure_state["messages"] = [
-            HumanMessage(content=merged_state["query"])
+            HumanMessage(
+                content=merged_state["query"],
+                additional_kwargs={"internal": True, "reconstructed": True}
+            )
         ]
 
     # Pass plan data and parameters to structure agent
@@ -193,10 +197,14 @@ async def _input_node(state: VaspPipelineState, config: RunnableConfig) -> Dict[
 
     # Ensure at least one message exists for the input agent
     # If all messages were filtered out, create a message from the query
+    # Mark as internal to prevent showing in frontend
     if not input_state["messages"] and merged_state.get("query"):
         from langchain_core.messages import HumanMessage
         input_state["messages"] = [
-            HumanMessage(content=merged_state["query"])
+            HumanMessage(
+                content=merged_state["query"],
+                additional_kwargs={"internal": True, "reconstructed": True}
+            )
         ]
 
     # Pass plan data and parameters to input agent

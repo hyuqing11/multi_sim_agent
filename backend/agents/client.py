@@ -290,7 +290,7 @@ class AgentClient:
 
         client = httpx.AsyncClient()
         try:
-            response = client.stream(
+            response_ctx = client.stream(
                 "POST",
                 f"{self.base_url}/agent/{self.agent}/stream",
                 json=request.model_dump(),
@@ -298,7 +298,7 @@ class AgentClient:
                 timeout=self.timeout,
             )
             try:
-                await response.__aenter__()
+                response = await response_ctx.__aenter__()
                 response.raise_for_status()
                 async for line in response.aiter_lines():
                     if line.strip():
@@ -310,7 +310,7 @@ class AgentClient:
                 raise AgentClientError(f"Error: {e}")
             finally:
                 # Clean up response stream
-                await response.__aexit__(None, None, None)
+                await response_ctx.__aexit__(None, None, None)
         finally:
             # Clean up client
             await client.aclose()

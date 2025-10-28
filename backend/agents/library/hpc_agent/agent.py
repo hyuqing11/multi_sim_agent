@@ -179,11 +179,15 @@ class HPCAgent:
             max_retries=state.get("max_retries", 3),
             current_attempt=state.get("retry_count", 0) + 1,
         )
-        messages = state['messages']
+
+        # Create a new messages list instead of mutating the state
+        messages = list(state['messages'])
         if messages and isinstance(messages[0], SystemMessage):
-            messages[0].content = system_prompt_content
+            # Replace the first message with updated system prompt
+            messages = [SystemMessage(content=system_prompt_content)] + messages[1:]
         else:
-            messages.insert(0, SystemMessage(content=system_prompt_content))
+            # Insert system prompt at the beginning
+            messages = [SystemMessage(content=system_prompt_content)] + messages
 
         response = await llm_with_tools.ainvoke(messages)
         return {

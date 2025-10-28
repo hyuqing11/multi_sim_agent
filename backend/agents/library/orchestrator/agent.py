@@ -702,7 +702,7 @@ class OrchestratorAgent:
             )
 
         vasp_state: dict[str, Any] = {
-            "messages": [HumanMessage(content=instruction,additional_kwargs = {"internal": True})],
+            "messages": [HumanMessage(content=instruction, additional_kwargs={"internal": True})],
             "thread_id": merged_state.get("thread_id"),
             "query": user_query,
         }

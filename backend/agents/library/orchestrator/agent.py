@@ -815,114 +815,135 @@ class OrchestratorAgent:
                 "messages": [AIMessage(content="ERROR: No VASP input directories available for submission.")],
             }
 
-        calc_folder = list(input_dirs.values())[0]
         user_query = merged_state.get("latest_user_request") or ""
-
-        # Get current step group for specific instructions
         current_step_group = merged_state.get("current_step_group")
         plan_data = merged_state.get("plan_data")
 
-        # Build step-specific instruction
-        if current_step_group:
-            step_description = current_step_group.get("description", "")
-            step_list = current_step_group.get("steps", [])
-            step_params = current_step_group.get("parameters", {})
+        # Collect results from all folder submissions
+        all_job_ids = []
+        all_observations = []
+        all_raw_messages = []
+        all_output_paths = []
+        overall_job_status = None
 
-            instruction = (
-                "Submit and monitor the VASP job on the HPC cluster.\n"
-                f"\n**Current Task:** {step_description}"
-                f"\n**Specific Steps:**"
-            )
-            for i, step in enumerate(step_list, 1):
-                instruction += f"\n  {i}. {step}"
+        # Process each input directory
+        for folder_name, calc_folder in input_dirs.items():
+            # Build step-specific instruction for this folder
+            if current_step_group:
+                step_description = current_step_group.get("description", "")
+                step_list = current_step_group.get("steps", [])
+                step_params = current_step_group.get("parameters", {})
 
-            instruction += f"\n\n**Working Directory:** {calc_folder}"
-            instruction += f"\n**Original User Request:** {user_query}"
+                instruction = (
+                    "Submit and monitor the VASP job on the HPC cluster.\n"
+                    f"\n**Calculation Type:** {folder_name}"
+                    f"\n**Current Task:** {step_description}"
+                    f"\n**Specific Steps:**"
+                )
+                for i, step in enumerate(step_list, 1):
+                    instruction += f"\n  {i}. {step}"
 
-            if step_params:
-                instruction += f"\n\n**Recommended Job Configuration:**"
-                if 'walltime' in step_params:
-                    instruction += f"\n- Walltime: {step_params['walltime']}"
-                if 'nodes' in step_params:
-                    instruction += f"\n- Nodes: {step_params['nodes']}"
-                if 'cores' in step_params:
-                    instruction += f"\n- Cores: {step_params['cores']}"
+                instruction += f"\n\n**Working Directory:** {calc_folder}"
+                instruction += f"\n**Original User Request:** {user_query}"
 
-            instruction += "\n\nSubmit the job using the VASP input files in the working directory."
-        else:
-            # Fallback to original instruction
-            instruction = (
-                "Submit the VASP job to the HPC cluster."
-                f"\nUser request: {user_query}"
-                f"\nVASP input directories: {calc_folder}"
-                "\nUse the provided directories as the working inputs."
-            )
+                if step_params:
+                    instruction += f"\n\n**Recommended Job Configuration:**"
+                    if 'walltime' in step_params:
+                        instruction += f"\n- Walltime: {step_params['walltime']}"
+                    if 'nodes' in step_params:
+                        instruction += f"\n- Nodes: {step_params['nodes']}"
+                    if 'cores' in step_params:
+                        instruction += f"\n- Cores: {step_params['cores']}"
 
-        hpc_state: dict[str, Any] = {
-            "messages": [HumanMessage(content=instruction,additional_kwargs = {"internal": True}),],
-            "thread_id": merged_state.get("thread_id"),
-            "working_directory": merged_state.get("working_directory"),
-            "retry_count": merged_state.get("retry_count", 0) or 0,
-            "max_retries": merged_state.get("max_retries", 1) or 1,
-        }
+                instruction += "\n\nSubmit the job using the VASP input files in the working directory."
+            else:
+                # Fallback to original instruction
+                instruction = (
+                    "Submit the VASP job to the HPC cluster."
+                    f"\n**Calculation Type:** {folder_name}"
+                    f"\nUser request: {user_query}"
+                    f"\nVASP input directory: {calc_folder}"
+                    "\nUse the provided directory as the working input."
+                )
 
-        # Pass structured plan data and parameters to HPC agent
-        if plan_data:
-            hpc_state["plan_data"] = plan_data
-
-        # Pass DFT parameters
-        dft_params = merged_state.get("dft_parameters", {})
-        if dft_params:
-            hpc_state["dft_parameters"] = dft_params
-
-        # Pass current step group
-        if current_step_group:
-            hpc_state["current_step_group"] = current_step_group
-
-        hpc_config = _with_thread_suffix(config, merged_state.get("thread_id"), "hpc")
-        try:
-            result = await hpc_agent.ainvoke(hpc_state, config=hpc_config)
-        except Exception as exc:
-            error_history = _coerce_error_history(merged_state.get("error_history"))
-            error_history.append(
-                {
-                    "source": "hpc_agent",
-                    "message": f"HPC agent error: {exc}",
-                    "type": "exception",
-                }
-            )
-            return {
-                **updates,
-                "job_status": "error",
-                "hpc_observations": [f"HPC agent error: {exc}"],
-                "error_history": error_history,
-                "messages": [AIMessage(content=f"HPC agent error: {exc}")],
+            hpc_state: dict[str, Any] = {
+                "messages": [HumanMessage(content=instruction, additional_kwargs={"internal": True}),],
+                "thread_id": merged_state.get("thread_id"),
+                "working_directory": merged_state.get("working_directory"),
+                "retry_count": merged_state.get("retry_count", 0) or 0,
+                "max_retries": merged_state.get("max_retries", 1) or 1,
             }
 
-        raw_messages = result.get("messages", [])
-        observations = [_message_to_text(msg) for msg in raw_messages]
-        job_status, job_id, output_path = _parse_job_status(observations)
+            # Pass structured plan data and parameters to HPC agent
+            if plan_data:
+                hpc_state["plan_data"] = plan_data
 
+            # Pass DFT parameters
+            dft_params = merged_state.get("dft_parameters", {})
+            if dft_params:
+                hpc_state["dft_parameters"] = dft_params
+
+            # Pass current step group
+            if current_step_group:
+                hpc_state["current_step_group"] = current_step_group
+
+            hpc_config = _with_thread_suffix(config, merged_state.get("thread_id"), f"hpc_{folder_name}")
+
+            try:
+                result = await hpc_agent.ainvoke(hpc_state, config=hpc_config)
+            except Exception as exc:
+                error_history = _coerce_error_history(merged_state.get("error_history"))
+                error_history.append(
+                    {
+                        "source": "hpc_agent",
+                        "message": f"HPC agent error for {folder_name}: {exc}",
+                        "type": "exception",
+                    }
+                )
+                # Continue processing other folders even if one fails
+                all_observations.append(f"ERROR submitting {folder_name}: {exc}")
+                continue
+
+            raw_messages = result.get("messages", [])
+            observations = [_message_to_text(msg) for msg in raw_messages]
+            job_status, job_id, output_path = _parse_job_status(observations)
+
+            # Collect results from this folder
+            if job_id:
+                all_job_ids.append(f"{folder_name}:{job_id}")
+            if observations:
+                all_observations.extend([f"[{folder_name}] {obs}" for obs in observations])
+            if raw_messages:
+                all_raw_messages.extend(raw_messages)
+            if output_path:
+                all_output_paths.append(f"{folder_name}:{output_path}")
+
+            # Track overall job status (use worst case)
+            if job_status == "failed":
+                overall_job_status = "failed"
+            elif job_status == "success" and overall_job_status != "failed":
+                overall_job_status = "success"
+
+        # Build aggregated updates
         hpc_updates: dict[str, Any] = {
             **updates,
-            "job_submitted": bool(job_id or observations),
-            "job_status": job_status or merged_state.get("job_status"),
-            "job_id": job_id or merged_state.get("job_id"),
-            "job_output_path": output_path or merged_state.get("job_output_path"),
-            "hpc_observations": observations,
-            "retry_count": result.get("retry_count", merged_state.get("retry_count")),
-            "max_retries": result.get("max_retries", merged_state.get("max_retries")),
-            "messages": raw_messages,
+            "job_submitted": bool(all_job_ids or all_observations),
+            "job_status": overall_job_status or merged_state.get("job_status"),
+            "job_id": ", ".join(all_job_ids) if all_job_ids else merged_state.get("job_id"),
+            "job_output_path": "; ".join(all_output_paths) if all_output_paths else merged_state.get("job_output_path"),
+            "hpc_observations": all_observations,
+            "retry_count": merged_state.get("retry_count", 0),
+            "max_retries": merged_state.get("max_retries", 1),
+            "messages": all_raw_messages if all_raw_messages else [AIMessage(content=f"Submitted jobs for {len(input_dirs)} folders: {', '.join(input_dirs.keys())}")],
         }
 
         workspace_dir = merged_state.get("working_directory")
-        if workspace_dir and observations:
+        if workspace_dir and all_observations:
             Path(workspace_dir).mkdir(parents=True, exist_ok=True)
-            Path(workspace_dir, "hpc_observations.txt").write_text("\n\n".join(observations))
+            Path(workspace_dir, "hpc_observations.txt").write_text("\n\n".join(all_observations))
 
-        # Track step completion if job submitted successfully
-        current_step_group = merged_state.get("current_step_group")
-        if job_id and current_step_group:
+        # Track step completion if jobs submitted successfully
+        if all_job_ids and current_step_group:
             step_description = current_step_group.get("description", "HPC submission step")
             completed = list(merged_state.get("completed_steps", []))
             completed.append(step_description)

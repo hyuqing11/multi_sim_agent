@@ -2,6 +2,7 @@ from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     HumanMessage,
+    SystemMessage,
     ToolMessage,
 )
 from langchain_core.messages import (
@@ -53,6 +54,19 @@ def langchain_to_chat_message(message: BaseMessage) -> ChatMessage:
                 additional_kwargs=dict(getattr(message, "additional_kwargs", {}) or {}),
             )
             return tool_message
+        case SystemMessage():
+            # System messages contain instructions for the AI and should be marked as internal
+            # so they don't display in the frontend
+            additional_kwargs = dict(getattr(message, "additional_kwargs", {}) or {})
+            # Ensure internal flag is set (don't override if already present)
+            if "internal" not in additional_kwargs:
+                additional_kwargs["internal"] = True
+            system_message = ChatMessage(
+                type="custom",
+                content=convert_message_content_to_string(message.content),
+                additional_kwargs=additional_kwargs,
+            )
+            return system_message
         case LangchainChatMessage():
             if message.role == "custom":
                 custom_message = ChatMessage(

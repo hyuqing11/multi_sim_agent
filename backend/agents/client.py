@@ -287,24 +287,33 @@ class AgentClient:
             request.model = model
         if agent_config:
             request.agent_config = agent_config
-        async with httpx.AsyncClient() as client:
+
+        client = httpx.AsyncClient()
+        try:
+            response = client.stream(
+                "POST",
+                f"{self.base_url}/agent/{self.agent}/stream",
+                json=request.model_dump(),
+                headers=self._headers,
+                timeout=self.timeout,
+            )
             try:
-                async with client.stream(
-                    "POST",
-                    f"{self.base_url}/agent/{self.agent}/stream",
-                    json=request.model_dump(),
-                    headers=self._headers,
-                    timeout=self.timeout,
-                ) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if line.strip():
-                            parsed = self._parse_stream_line(line)
-                            if parsed is None:
-                                break
-                            yield parsed
+                await response.__aenter__()
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        parsed = self._parse_stream_line(line)
+                        if parsed is None:
+                            break
+                        yield parsed
             except httpx.HTTPError as e:
                 raise AgentClientError(f"Error: {e}")
+            finally:
+                # Clean up response stream
+                await response.__aexit__(None, None, None)
+        finally:
+            # Clean up client
+            await client.aclose()
 
     async def acreate_feedback(
         self, run_id: str, key: str, score: float, kwargs: dict[str, Any] = {}

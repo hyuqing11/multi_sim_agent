@@ -1512,9 +1512,12 @@ If workflow_steps exist:
             supervisor_msg += f"**Steps:** {', '.join(current_step_group.get('steps', []))}\n"
         supervisor_msg += f"**Reasoning:** {reasoning}"
 
+        # Mark supervisor routing messages as internal to prevent them from
+        # being sent to the frontend during sub-agent execution
+        # This prevents "unexpected message" errors when sub-agents make tool calls
         return {
             **updates,
-            "messages": [AIMessage(content=supervisor_msg)],
+            "messages": [AIMessage(content=supervisor_msg, additional_kwargs={"internal": True})],
             "next_agent": next_agent,
             "stage": new_stage,
         }

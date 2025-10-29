@@ -338,8 +338,8 @@ def create_job_config(
         work_dir: str,
         job_params: dict,
         scheduler_type: str,
-        engine:str,
-        job_name: Optional[str] = None,
+        engine: str,
+        job_name: str,
         input_file: Optional[str] = None,
 ):
     """

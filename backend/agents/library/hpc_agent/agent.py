@@ -190,10 +190,9 @@ class HPCAgent:
             messages = [SystemMessage(content=system_prompt_content)] + messages
 
         response = await llm_with_tools.ainvoke(messages)
+        # Only return fields that this node modifies
         return {
-            "messages": [response],
-            "retry_count": state.get("retry_count", 0),
-            "max_retries": state.get("max_retries", 3)
+            "messages": [response]
         }
 
     async def _tool_node(self, state: HPCState):
@@ -238,10 +237,11 @@ class HPCAgent:
             for obs, tc in zip(observations, tool_calls)
         ]
 
-        return {"messages": tool_output,
-                "retry_count": new_retry_count,
-                "max_retries": state.get("max_retries", 3)
-                }
+        # Only return fields that this node modifies
+        return {
+            "messages": tool_output,
+            "retry_count": new_retry_count
+        }
 
     def _should_continue(self, state: HPCState) -> Literal["tools", "end"]:
         """

@@ -810,9 +810,39 @@ class OrchestratorAgent:
 
         input_dirs = merged_state.get("input_directories", {})
         if not input_dirs:
+            # Check if we have structure but no input files yet
+            structure_ready = merged_state.get("structure_ready", False)
+            has_structure_blob = bool(merged_state.get("structure_prompt_blob"))
+
+            error_msg = "⚠️ **ERROR: No VASP input directories available for submission.**\n\n"
+
+            if structure_ready or has_structure_blob:
+                error_msg += (
+                    "**Diagnosis:** Structure exists but VASP input files (INCAR, KPOINTS, POTCAR) haven't been created yet.\n\n"
+                    "**Required Action:** The VASP pipeline needs to run first to generate input files.\n"
+                    "The supervisor should route to the 'vasp' agent before calling 'hpc'.\n\n"
+                    "**Next Step:** Routing back to supervisor to execute VASP pipeline..."
+                )
+                # Force routing back to supervisor to run VASP first
+                return {
+                    **updates,
+                    "messages": [AIMessage(content=error_msg)],
+                    "next_agent": "vasp",  # Force VASP to run next
+                    "stage": "structure_gen",
+                }
+            else:
+                error_msg += (
+                    "**Diagnosis:** No structure or input files found.\n\n"
+                    "**Required Action:** Need to:\n"
+                    "1. Generate/specify atomic structure\n"
+                    "2. Create VASP input files (INCAR, KPOINTS, POTCAR)\n"
+                    "3. Then submit to HPC\n\n"
+                    "**Next Step:** Please ensure the VASP pipeline runs before HPC submission."
+                )
+
             return {
                 **updates,
-                "messages": [AIMessage(content="ERROR: No VASP input directories available for submission.")],
+                "messages": [AIMessage(content=error_msg)],
             }
 
         user_query = merged_state.get("latest_user_request") or ""
@@ -1417,6 +1447,14 @@ If workflow_steps exist:
                 next_agent = "vasp"
                 current_step_group = None
                 reasoning = "Default: starting VASP pipeline"
+
+        # Safety check: Don't route to HPC if input directories aren't ready
+        if next_agent == "hpc":
+            input_dirs = merged_state.get("input_directories", {})
+            if not input_dirs:
+                print("Warning: Supervisor attempted to route to HPC but input_directories is empty. Routing to VASP first.")
+                next_agent = "vasp"
+                reasoning = "Input files not ready - running VASP pipeline first before HPC submission"
 
         # Determine stage from agent
         agent_to_stage = {

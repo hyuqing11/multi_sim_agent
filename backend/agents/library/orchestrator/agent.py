@@ -1352,6 +1352,7 @@ If workflow_steps exist:
 
 ## Decision Logic
 - No plan → planner
+- **Parameter adjustments pending (after error analysis) → planner** (to revise workflow with fixes)
 - Plan exists, current step is VASP task → vasp
 - VASP complete, current step is HPC task → hpc
 - Job complete → analysis
@@ -1457,6 +1458,15 @@ If workflow_steps exist:
                 next_agent = "vasp"
                 current_step_group = None
                 reasoning = "Default: starting VASP pipeline"
+
+        # Override routing if we have parameter adjustments from error analysis
+        # This ensures we retry with fixes instead of continuing with failed parameters
+        has_adjustments = bool(merged_state.get("parameter_adjustments"))
+        if has_adjustments and retry_count < max_retries:
+            next_agent = "planner"
+            current_step_group = None
+            reasoning = f"Error detected with recovery plan - routing to planner to revise workflow (retry {retry_count + 1}/{max_retries})"
+            print(f"Supervisor: Detected parameter_adjustments, routing to planner for retry {retry_count + 1}/{max_retries}")
 
         # Safety check: Don't route to HPC if input directories aren't ready
         if next_agent == "hpc":

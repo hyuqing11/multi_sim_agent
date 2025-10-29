@@ -5,7 +5,8 @@ from langchain_anthropic import ChatAnthropic
 from langgraph.prebuilt import create_react_agent
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Annotated
+import operator
 from langchain_community.tools import TavilySearchResults
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
@@ -62,6 +63,15 @@ class SupervisorStepDecision(BaseModel):
     reasoning: str  # Why this decision was made
 
 
+def merge_dicts(left: dict | None, right: dict | None) -> dict:
+    """Merge two dictionaries, with right taking precedence for overlapping keys."""
+    if left is None:
+        return right or {}
+    if right is None:
+        return left
+    return {**left, **right}
+
+
 class OrchestratorState(MessagesState, total=False):
     # Core identifiers
     thread_id: str
@@ -82,7 +92,7 @@ class OrchestratorState(MessagesState, total=False):
     # Planner outputs
     literature_context: str
     literature_summary: str
-    literature_payload: dict[str, Any]
+    literature_payload: Annotated[dict[str, Any], merge_dicts]
     literature_status: str
     literature_error: str
     last_literature_request: str
@@ -97,13 +107,13 @@ class OrchestratorState(MessagesState, total=False):
     literature_source_verification_notes: str
     literature_source_urls: list[str]
     literature_sources_path: str
-    dft_parameters: dict[str, Any]
-    plan_data: dict[str, Any]
+    dft_parameters: Annotated[dict[str, Any], merge_dicts]
+    plan_data: Annotated[dict[str, Any], merge_dicts]
 
     # VASP pipeline outputs
     structure_ready: bool
     structure_filename: str
-    input_directories: dict[str, str]  # folder_name -> path
+    input_directories: Annotated[dict[str, str], merge_dicts]  # folder_name -> path
     structure_summary: str
     vasp_run_status: str
     vasp_last_message: str
@@ -117,10 +127,10 @@ class OrchestratorState(MessagesState, total=False):
 
     # Analysis results
     convergence_status: str
-    convergence_details: dict[str, Any]
+    convergence_details: Annotated[dict[str, Any], merge_dicts]
     supervisor_summary: str
     supervisor_recommendations: list[str]
-    error_details: dict[str, Any]  # Everything in one place!
+    error_details: Annotated[dict[str, Any], merge_dicts]  # Everything in one place!
     error_history: list[dict[str, Any]]  # Full error objects!
 
     # Retry management
@@ -128,7 +138,7 @@ class OrchestratorState(MessagesState, total=False):
     max_retries: int
 
     # Parameter adjustments
-    parameter_adjustments: dict[str, Any]
+    parameter_adjustments: Annotated[dict[str, Any], merge_dicts]
 
 
 
@@ -810,9 +820,39 @@ class OrchestratorAgent:
 
         input_dirs = merged_state.get("input_directories", {})
         if not input_dirs:
+            # Check if we have structure but no input files yet
+            structure_ready = merged_state.get("structure_ready", False)
+            has_structure_blob = bool(merged_state.get("structure_prompt_blob"))
+
+            error_msg = "⚠️ **ERROR: No VASP input directories available for submission.**\n\n"
+
+            if structure_ready or has_structure_blob:
+                error_msg += (
+                    "**Diagnosis:** Structure exists but VASP input files (INCAR, KPOINTS, POTCAR) haven't been created yet.\n\n"
+                    "**Required Action:** The VASP pipeline needs to run first to generate input files.\n"
+                    "The supervisor should route to the 'vasp' agent before calling 'hpc'.\n\n"
+                    "**Next Step:** Routing back to supervisor to execute VASP pipeline..."
+                )
+                # Force routing back to supervisor to run VASP first
+                return {
+                    **updates,
+                    "messages": [AIMessage(content=error_msg)],
+                    "next_agent": "vasp",  # Force VASP to run next
+                    "stage": "structure_gen",
+                }
+            else:
+                error_msg += (
+                    "**Diagnosis:** No structure or input files found.\n\n"
+                    "**Required Action:** Need to:\n"
+                    "1. Generate/specify atomic structure\n"
+                    "2. Create VASP input files (INCAR, KPOINTS, POTCAR)\n"
+                    "3. Then submit to HPC\n\n"
+                    "**Next Step:** Please ensure the VASP pipeline runs before HPC submission."
+                )
+
             return {
                 **updates,
-                "messages": [AIMessage(content="ERROR: No VASP input directories available for submission.")],
+                "messages": [AIMessage(content=error_msg)],
             }
 
         user_query = merged_state.get("latest_user_request") or ""
@@ -1417,6 +1457,14 @@ If workflow_steps exist:
                 next_agent = "vasp"
                 current_step_group = None
                 reasoning = "Default: starting VASP pipeline"
+
+        # Safety check: Don't route to HPC if input directories aren't ready
+        if next_agent == "hpc":
+            input_dirs = merged_state.get("input_directories", {})
+            if not input_dirs:
+                print("Warning: Supervisor attempted to route to HPC but input_directories is empty. Routing to VASP first.")
+                next_agent = "vasp"
+                reasoning = "Input files not ready - running VASP pipeline first before HPC submission"
 
         # Determine stage from agent
         agent_to_stage = {

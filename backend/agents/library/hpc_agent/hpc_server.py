@@ -320,18 +320,21 @@ async def search_policy(query:str)->str:
         print(f"[ERROR] Unexpected error in search_policy: {error_trace}", file=sys.stderr, flush=True)
         return f"ERROR: Failed to search HPC policy. Details: {e}"
 @hpc_mcp.tool()
-def check_config_exists()->str:
+def check_config_exists(config_path: str = "config.yaml") -> str:
     """
-    Check if a config.yaml file exists in the give directory.
+    Check if a config.yaml file exists at the specified path.
+
+    Args:
+        config_path (str): Path to the config file to check. Defaults to "config.yaml" in current directory.
     """
     try:
-        config_path = Path("config.yaml")
-        if config_path.exists():
-            return f"SUCESS: config.yaml already exists"
+        config_file = Path(config_path)
+        if config_file.exists():
+            return f"SUCCESS: Configuration file exists at {config_path}"
         else:
-            return f"INFO: config.yaml does not exist. You should create one"
+            return f"INFO: Configuration file does not exist at {config_path}. You should create one."
     except Exception as e:
-        return f"ERROR: Failed to check config.yaml: {e}"
+        return f"ERROR: Failed to check configuration file: {e}"
 @hpc_mcp.tool()
 def create_job_config(
         config_path: str,

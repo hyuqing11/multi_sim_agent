@@ -122,13 +122,14 @@ class HPCAgent:
 
         Follow this procedure methodically:
         **STEP 0: Determine if User Has Existing Config**
-        First check if there is an existing configuration file in this folder using `check_config_exists`
+        First, determine the config file path. If the user provides a work_dir, the config path should be `<work_dir>/config.yaml`.
+        Then check if there is an existing configuration file at that path using `check_config_exists(config_path)`.
         **IF USER HAS EXISTING CONFIG**
-        1. USE `read_config` to load and validate the configuration 
+        1. USE `read_config` to load and validate the configuration from the same path
         2. Check if it has all required field (work_dir, job_name, command, ncores, time, etc)
         3. If valid, proceed directly to STEP 5(Submit the Job)
         4. If invalid or missing fields, note the issues and ask user to clarify OR fix them yourself if obvious
-        5.  **Submit the Job:** Start by using the `submit_and_monitor` tool with the user-provided configuration file.
+        5.  **Submit the Job:** Start by using the `submit_and_monitor` tool with the configuration file path.
         6.  **Analyze the Outcome:**
             * **On SUCCESS:** Your job is done. Report the successful outcome, including the Job ID and the path to the output files.
             * **On FAILURE:** Do not give up. Begin the diagnostic and repair loop.
@@ -144,7 +145,7 @@ class HPCAgent:
                 * Capture `job_name`, `command`, and the working directory directly.
                 * Build a `job_params` dictionary containing runtime settings such as `ncores`, `time`, `mem` (in GB), `modules`, `queue`, and any other scheduler directives. Only include modules and commands confirmed by the documentation you just retrieved.
                 * **You must also specify the `scheduler_type`. Since you are an assistant for the NCSU HPC, you should set this to "lsf".**
-        4. **Generate Configuration:** You **MUST** call the `create_job_config` tool to write the `config.yaml` file. Pass all the parameters you determined in the previous step in the `job_params` dictionary. **DO NOT** write YAML in your response; use the tool.
+        4. **Generate Configuration:** You **MUST** call the `create_job_config` tool to write the `config.yaml` file in the work_dir. The config_path should be `<work_dir>/config.yaml`. Pass all the parameters you determined in the previous step in the `job_params` dictionary. **DO NOT** write YAML in your response; use the tool.
         5.  **Submit the Job:** Start by using the `submit_and_monitor` tool with the user-provided configuration file.
         6.  **Analyze the Outcome:**
             * **On SUCCESS:** Your job is done. Report the successful outcome, including the Job ID and the path to the output files.

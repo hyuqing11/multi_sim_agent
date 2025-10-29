@@ -166,6 +166,11 @@ async def message_generator(
                 and chat_message.content == user_input.message
             ):
                 continue
+
+            # Skip messages marked as internal (e.g., orchestrator->sub-agent communication)
+            if chat_message.additional_kwargs.get("internal", False):
+                continue
+
             message_key = _chat_message_key(chat_message)
             if message_key in seen_message_keys:
                 continue
